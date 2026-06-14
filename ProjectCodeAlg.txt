@@ -1,0 +1,169 @@
+#include <iostream>
+#include <vector>
+#include <cstdlib>
+#include <ctime>
+#include <fstream>
+#include <string>
+#include <queue>
+#include <sstream>
+#include <algorithm>
+#include <chrono>
+
+using namespace std;
+using namespace std::chrono;
+
+// Generate random data
+vector<int> generateRandomData(int size) {
+    vector<int> data(size);
+    for (int i = 0; i < size; ++i)
+        data[i] = rand() % 1000 + 1;
+    return data;
+}
+
+// Insertion Sort
+void insertionSort(vector<int>& arr) {
+    for (int i = 1; i < arr.size(); ++i) {
+        int key = arr[i];
+        int j = i - 1;
+        while (j >= 0 && arr[j] > key) {
+            arr[j + 1] = arr[j];
+            j--;
+        }
+        arr[j + 1] = key;
+    }
+}
+
+// Counting Sort
+void countingSort(vector<int>& arr) {
+    if (arr.empty()) return;
+
+    int maxVal = *max_element(arr.begin(), arr.end());
+    vector<int> count(maxVal + 1, 0);
+
+    for (int num : arr) count[num]++;
+
+    int idx = 0;
+    for (int i = 0; i <= maxVal; ++i)
+        while (count[i]--) arr[idx++] = i;
+}
+
+// Heap Sort
+void heapSort(vector<int>& arr) {
+    priority_queue<int, vector<int>, greater<int>> heap(arr.begin(), arr.end());
+    for (int i = 0; i < arr.size(); ++i) {
+        arr[i] = heap.top();
+        heap.pop();
+    }
+}
+
+// Partition for Quick Sort
+int partition(vector<int>& arr, int l, int h) {
+    int pivot = arr[h];
+    int i = l - 1;
+
+    for (int j = l; j <= h - 1; j++) {
+        if (arr[j] < pivot)
+            swap(arr[++i], arr[j]);
+    }
+    swap(arr[i + 1], arr[h]);
+    return i + 1;
+}
+
+// Iterative Quick Sort
+void iterativeQuickSort(vector<int>& arr) {
+    int l = 0, h = arr.size() - 1;
+    vector<int> stack(h - l + 1);
+    int top = -1;
+
+    stack[++top] = l;
+    stack[++top] = h;
+
+    while (top >= 0) {
+        h = stack[top--];
+        l = stack[top--];
+
+        int p = partition(arr, l, h);
+
+        if (p - 1 > l) {
+            stack[++top] = l;
+            stack[++top] = p - 1;
+        }
+
+        if (p + 1 < h) {
+            stack[++top] = p + 1;
+            stack[++top] = h;
+        }
+    }
+}
+
+// Measure time
+pair<double, vector<int>> measureTime(void (*sortFunc)(vector<int>&), vector<int> data) {
+    int repetitions = 50;
+    vector<int> copy;
+    
+    auto start = high_resolution_clock::now();
+
+    for (int i = 0; i < repetitions; i++) {
+        copy = data;
+        sortFunc(copy);
+    }
+
+    auto end = high_resolution_clock::now();
+
+    double time = duration<double, milli>(end - start).count() / repetitions;
+
+    return {time, copy};
+}
+
+// Convert data to string
+string dataToString(const vector<int>& data) {
+    stringstream ss;
+    for (int i = 0; i < data.size(); ++i) {
+        ss << data[i];
+        if (i != data.size() - 1)
+            ss << " ";
+    }
+    return ss.str();
+}
+
+int main() {
+    srand(time(0));
+
+    vector<int> sizes = {10000, 20000, 30000, 40000, 50000};
+
+    ofstream csvFile("results.csv");
+
+    if (!csvFile.is_open()) {
+        cerr << "Error opening file!" << endl;
+        return 1;
+    }
+
+    csvFile << "Algorithm,Size,Time(ms)\n";
+
+    vector<pair<string, void(*)(vector<int>&)>> algorithms = {
+        {"Insertion Sort", insertionSort},
+        {"Quick Sort", iterativeQuickSort},
+        {"Counting Sort", countingSort},
+        {"Heap Sort", heapSort}
+    };
+
+    for (int size : sizes) {
+        vector<int> data = generateRandomData(size);
+
+        for (auto& alg : algorithms) {
+            auto result = measureTime(alg.second, data);
+
+            cout << alg.first << " | Size: " << size
+                 << " | Time: " << result.first << " ms" << endl;
+
+            csvFile << alg.first << "," << size << "," << result.first << "\n";
+        }
+
+        cout << "-----------------------------\n";
+    }
+
+    csvFile.close();
+    cout << "Results saved to results.csv" << endl;
+
+    return 0;
+}
